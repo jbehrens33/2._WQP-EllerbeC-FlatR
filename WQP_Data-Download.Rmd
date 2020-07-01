@@ -3,7 +3,6 @@ title: "WQP Data Download"
 output: html_notebook
 ---
 # Set-Up R Environment
-Setting everything up for the R environment.
 ```{r setup}
 ## Libraries
 library(dataRetrieval)
