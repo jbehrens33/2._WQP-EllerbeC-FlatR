@@ -10,8 +10,10 @@ library(tidyverse)
 library(openxlsx)
 library(leaflet)                                           
 library(reshape2)
+library(knitr)
 
-#setwd("C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2.-Ellerbe_Flat-River") # Only needed if outside RMarkdown
+#Set working directory
+opts_knit$set(root.dir = "C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2._WQP-EllerbeC-FlatR")
 ```
 
 # Download Data
