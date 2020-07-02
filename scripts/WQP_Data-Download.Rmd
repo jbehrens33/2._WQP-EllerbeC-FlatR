@@ -4,6 +4,9 @@ output: html_notebook
 ---
 # Set-Up R Environment
 ```{r setup}
+## Clear environment
+rm(list = ls())
+
 ## Libraries
 library(dataRetrieval)
 library(tidyverse)
@@ -11,19 +14,19 @@ library(openxlsx)
 library(leaflet)                                           
 library(reshape2)
 library(knitr)
+library(MazamaSpatialUtils)
 
 #Set working directory
 opts_knit$set(root.dir = "C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2._WQP-EllerbeC-FlatR")
 ```
 
-# Download Data
+# Water Data
+
+### Download Data
 Note that the data was previously downloaded from the WQP, however here a file previously saved is used (code to download directly from the WQP is commented out).
 
 *This will take a few minutes*
 ```{r}
-## Clear environment
-#rm(list = ls())
-
 #Upper_Neuse_Raw_Data <- readWQPdata(huc = "03020201") # Takes awhile to load (downloaded on 7/1/2020)
 #write.csv(Upper_Neuse_Raw_Data, "output/Data/WQP_Upper-Neuse_RAW.csv")
 
@@ -33,7 +36,7 @@ Upper_Neuse_Water_Raw<-Upper_Neuse_Raw_Data %>%
   filter(ActivityMediaName == "Water")
 ```
 
-# Addition of Data Qualifiers
+### Addition of Data Qualifiers
 Additional columns of information is added, providing information about the sites and parameters.
 ```{r}
 # Add long/lat for sites
@@ -61,7 +64,7 @@ Upper_Neuse_Water<-Upper_Neuse_Water %>%
   mutate(Decade = Year - Year %% 10)
 ```
 
-# Sub-sect Data
+### Sub-sect Data
 Data is transformed into a few smaller dataframes for easier analysis.
 ```{r}
 # Subsect data into Flat and Ellerbe River
@@ -90,12 +93,52 @@ Ellerbe_Flat_Sites<-Both_Water %>%
   tally() %>% 
   arrange(desc(n)) %>% 
   left_join(Upper_Neuse_Sites)
+
+# Add columns to data for plots (for 2014 data)
+Both_Water_Plot_Data<-Both_Water %>% #Add average measure
+  group_by(Year, MonitoringLocationIdentifier, USGSPCode) %>% 
+  mutate(Average_Measure_YearLocationAnalyte=mean(ResultMeasureValue, na.rm=TRUE)) %>% 
+  ungroup() %>% 
+  select(Year, MonitoringLocationIdentifier, MonitoringLocationName, USGSPCode, Parameter_with_units, CharacteristicName, ActivityStartDate, ActivityStartTime.Time, Average_Measure_YearLocationAnalyte, ResultMeasureValue, parameter_units)
+
+Both_Water_Plot_Data_2014<-Both_Water_Plot_Data %>% #Add daily flow (m3/sec)
+  filter(USGSPCode == 30209) %>% #right_join below brings all data back
+  rename(Stream_Flow_Value_m3persec=ResultMeasureValue) %>% 
+  select(Year, MonitoringLocationIdentifier, MonitoringLocationName, ActivityStartDate, Stream_Flow_Value_m3persec) %>% 
+  right_join(Both_Water_Plot_Data, 
+             by= c("Year", "MonitoringLocationIdentifier", "MonitoringLocationName", "ActivityStartDate")) %>% #Brings back all the data
+  filter(Year == 2014)
+
+Param_Groups<-Parameter_Data %>%#Add parameter information
+  select(USGSPCode, parameter_group_nm)
+Both_Water_Plot_Data_2014<-left_join(Both_Water_Plot_Data_2014, Param_Groups)
+
+Both_Water_Plot_Data_2014<-Both_Water_Plot_Data_2014 %>%#Add max value
+  group_by(MonitoringLocationIdentifier, Parameter_with_units) %>% 
+  mutate(Max_Param_Value = max(ResultMeasureValue)) %>% 
+  ungroup()
+
+Two_Sites_2014<-Both_Water_Plot_Data_2014 %>% #Select 2 sites for 2 years
+  filter(str_detect(MonitoringLocationIdentifier, 
+                    c("02085500|02086849"))) %>% 
+  filter(Year == 2014)
+
+Both_Water_Plot_Data_2014<-Both_Water_Plot_Data_2014 %>% #Convert to common g/L measure
+  mutate(Measured_Value_gperL = case_when(str_detect(parameter_units, "mg/l") ~ Max_Param_Value/1000,
+                                          parameter_units == "ug/l" ~ Max_Param_Value/1000000,
+                                          parameter_units == "ng/l" ~ Max_Param_Value/1000000000)) %>%
+  mutate(Measured_Value_ugperL = Measured_Value_gperL * 1000000) %>% 
+  mutate(Measured_Value_ugperL_not_min = case_when(str_detect(parameter_units, "mg/l") ~ ResultMeasureValue/1000,
+                                                  parameter_units == "ug/l" ~ ResultMeasureValue/1000000,
+                                                  parameter_units == "ng/l" ~ ResultMeasureValue/1000000000))
+
 ```
 
-# Save Data Locally
+### Save Data Locally
 ```{r}
 # Export the data or do some simple tests
 write.csv(Upper_Neuse_Water, "output/Data/WQP_Upper-Neuse_WATER.csv")
+write.csv(Both_Water, "output/Data/WQP_FR-EC_WATER.csv")
 
 write.csv(Flat_River_Water, "output/Data/WQP_FR_WATER.csv")
 write.csv(Ellerbe_Creek_Water, "output/Data/WQP_EC_WATER.csv")
@@ -103,8 +146,43 @@ write.csv(Ellerbe_Creek_Water, "output/Data/WQP_EC_WATER.csv")
 write.csv(Upper_Neuse_Sites, "output/Data/WQP_Upper-Neuse_SITES.csv")
 write.csv(Ellerbe_Flat_Sites, "output/Data/WQP_FR-EC_SITES.csv")
 
+write.csv(Both_Water_Plot_Data_2014, "output/Data/WQP_FR-EC_WATER-2014.csv")
 #tally(group_by(Upper_Neuse_Raw_Data_Raw, ActivityMediaName)) # Just to validate
 #tally(group_by(Parameter_Data, parameter_group_nm)) # Count of parameters, per group
 ```
+
+# Biological data.
+Note that data is from USGS' Biodata website. The data was downloaded manually and is brought in from a local copy.
+```{r}
+setSpatialDataDir("C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/3. Mapping/data_raw/Data_HUCs")
+loadSpatialData("WBDHU8.RData") # Download from http://data.mazamascience.com/MazamaSpatialUtils/Spatial/
+
+setwd("C:/Users/jbehr/OneDrive - Duke University/Documents/5. R")
+
+Inverts<-read.csv("3. Mapping/data_raw/Data_Biodata_NC/20200420.1152.InvertResults.csv")
+Sites<-read.csv("3. Mapping/data_raw/Data_Biodata_NC/20200420.1152.SiteInfo.csv")
+
+Inverts_Upper_Neuse_raw<-left_join(Inverts, Sites, by = "SiteNumber")
+
+Inverts_Upper_Neuse_raw<- Inverts_Upper_Neuse_raw%>% 
+  mutate(HUC8_FUll_Name = getHUCName(as.numeric(Inverts_Upper_Neuse_raw$Longitude_dd), as.numeric(Inverts_Upper_Neuse_raw$Latitude_dd), dataset = "WBDHU8")) %>% 
+  mutate(HUC8_Number = getHUC(as.numeric(Inverts_Upper_Neuse_raw$Longitude_dd), as.numeric(Inverts_Upper_Neuse_raw$Latitude_dd), dataset = "WBDHU8"))%>% 
+  filter(HUC8_Number == "03020201")
+
+colnames(Inverts_Upper_Neuse_raw)[1]<-"SIDNO" # Need to rename, some glitch with how the first column's name comes in
+
+Inverts_Upper_Neuse<- Inverts_Upper_Neuse_raw %>% 
+  filter(FieldComponent == "M") %>% 
+  rename(Field_Site = SiteName.x)
+
+#rm(Inverts_Upper_Neuse_raw, Inverts, Sites, WBDHU8)
+```
+
+### Save Bio data
+
+```{r}
+write.csv(Inverts_Upper_Neuse, "output/Data/Upper-Neuse_Inverts.csv")
+```
+
 
 

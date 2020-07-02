@@ -1,21 +1,26 @@
-################# 
-#### Set-Up  ####
-#################
-
+---
+title: "Rating Curve"
+output: html_notebook
+---
+# Set-Up R Environment
+```{r setup}
 ## Clear environment
 rm(list = ls())
 
 ## Libraries
-
 library(dataRetrieval)
 library(tidyverse)
 library(openxlsx)
 library(leaflet)                                           
 library(reshape2)
+library(knitr)
 
-## Set Working Directory
-setwd("C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2. WQP Ellerbe Flat")
+#Set working directory
+opts_knit$set(root.dir = "C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2._WQP-EllerbeC-FlatR")
+```
 
+# Download & Prep Data
+```{r}
 # Work
 Flat<-read.table("data_raw/Flat_Dam.txt", header = TRUE, sep = "\t") %>% 
   mutate(Gage_ft = ifelse(parameter_cd=="65", mean_va, NA)) %>% 
@@ -50,7 +55,6 @@ Glennstone_2<-filter(Glennstone, parameter_cd == "65") %>% select(-Discharge_cu3
 Glennstone<-full_join(Glennstone_1, Glennstone_2, by = c("agency_cd", "site_no", "year_month")) %>% 
   select(-contains("parameter"))
 
-
 Haw<-read.table("data_raw/Haw_Near-Jordan-Lake.txt", header = TRUE, sep = "\t") %>% 
   mutate(Gage_ft = ifelse(parameter_cd=="65", mean_va, NA)) %>% 
   mutate(Discharge_cu3sec = ifelse(parameter_cd=="60", mean_va, NA)) %>% 
@@ -71,7 +75,11 @@ All_sites<-full_join(All_sites, Haw) %>%
                         "2086849" = "Ellerbe Creek by Glennstone",
                         "2096960" = "Haw River upstream/near Jordan Lake"))
 
-# Rating Curve
+```
+
+# Rating Curve Figure
+
+```{r}
 Rating_Curve<-All_sites %>% 
   ggplot(aes(x= Gage_ft, y=Discharge_cu3sec, color = as.character(site_no))) +
   geom_point() +
@@ -80,4 +88,6 @@ Rating_Curve<-All_sites %>%
   theme(axis.text.x = element_text(angle=60, hjust = 1), legend.text=element_text(size=7)) +
   labs(title="Rating Curve for USGS Gages")
 print(Rating_Curve)
-ggsave("output/3-site_Rating-Curve.png")
+ggsave("output/Figures/3-site_Rating-Curve.png")
+```
+
