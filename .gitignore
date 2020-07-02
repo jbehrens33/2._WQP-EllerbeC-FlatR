@@ -2,5 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+.nb.html
 /data_raw
 /output
