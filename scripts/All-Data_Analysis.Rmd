@@ -1,0 +1,127 @@
+---
+title: "Analysis of Available Data"
+output: html_notebook
+---
+# Set-Up R Environment
+```{r setup}
+## Clear environment
+#rm(list = ls())
+
+## Libraries
+library(dataRetrieval)
+library(tidyverse)
+library(openxlsx)
+library(leaflet)                                           
+library(reshape2)
+library(knitr)
+library(MazamaSpatialUtils)
+
+#Set working directory
+opts_knit$set(root.dir = "C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2._WQP-EllerbeC-FlatR")
+```
+
+# Download Data
+```{r}
+# NWIS Data
+Upper_Neuse_Water<-read.csv("output/Data/WQP_Upper-Neuse_WATER.csv") #large file
+Both_Water<-read.csv("output/Data/WQP_FR-EC_WATER.csv")
+Both_Water_Plot_Data_2014<- read.csv("output/Data/WQP_FR-EC_WATER-2014.csv")
+
+Upper_Neuse_Sites<-read.csv("output/Data/WQP_Upper-Neuse_SITES.csv")
+Ellerbe_Flat_Sites<-read.csv("output/Data/WQP_FR-EC_SITES.csv")
+
+# STORET Data
+STORET_Data_EC_FR<-read.csv("output/Data/WQP_FR-EC_WATER_STORET.csv")
+
+# Invertebrate Data
+Inverts_Upper_Neuse<-read.csv("output/Data/Upper-Neuse_Inverts.csv")
+
+# Flow Data
+All_sites_flow<-read.csv("output/Data/Upper-Neuse_Inverts.csv")
+```
+
+# Analysis
+
+### Rating Curve
+```{r}
+Rating_Curve<-All_sites_flow %>% 
+  ggplot(aes(x= Gage_ft, y=Discharge_cu3sec, color = as.character(site_no))) +
+  geom_point() +
+  theme_classic() +
+  scale_y_continuous(trans='log10') +
+  theme(axis.text.x = element_text(angle=60, hjust = 1), legend.text=element_text(size=7)) +
+  labs(title="Rating Curve for USGS Gages")
+print(Rating_Curve)
+```
+
+### 2014 Analytes Detected, by Group
+
+```{r}
+Measurements_Grouped_2014<-Both_Water_Plot_Data_2014 %>% 
+  filter(str_detect(MonitoringLocationIdentifier, 
+                    c("02085500|02086849"))) %>% 
+  ggplot(aes(x=MonitoringLocationIdentifier, fill = as.character(parameter_group_nm))) +
+  geom_bar() +
+  ylim(0, 4000) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) + 
+  labs(title="Total Measurements Taken in 2014", fill="Analyte Group Name")
+print(Measurements_Grouped_2014)
+##ggsave("output/Decades_EC.png")
+  
+Detections_2014<-Both_Water_Plot_Data_2014 %>% 
+  filter(str_detect(MonitoringLocationIdentifier, 
+                    c("02085500|02086849"))) %>% 
+  ggplot(aes(x=MonitoringLocationIdentifier, fill = as.character(parameter_group_nm))) +
+  geom_bar(position = "stack", stat = "count") +
+  facet_wrap(~Detect_Status) +
+  ylim(0, 4000) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) + 
+  labs(title="Non-Detects, 2014", fill="Analyte Group Name")
+print(Detections_2014)
+
+# Manipulate data for easier plot
+Both_Water_Plot_Data_2014$parameter_group_nm<-as.character(Both_Water_Plot_Data_2014$parameter_group_nm)
+
+Detect_Percent_Data<- Both_Water_Plot_Data_2014 %>%
+  filter(str_detect(MonitoringLocationIdentifier, 
+                    c("02085500|02086849"))) %>% 
+  filter(!is.na(parameter_group_nm)) %>% 
+  filter(!str_detect(parameter_group_nm, 
+                    "Information|Physical|Sediment|Stable")) %>%
+  mutate(parameter_group_nm = str_replace_all(parameter_group_nm, 
+                              "Inorganics, Major, Non-metals|Inorganics, Major, Metals|Inorganics, Minor, Metals",
+                              "Inorganics")) %>%  
+  group_by(parameter_group_nm, MonitoringLocationName) %>% 
+  mutate(Detect_Count=sum(!is.na(ResultMeasureValue))) %>% 
+  mutate(Non_Detect_Count=sum(is.na(ResultMeasureValue))) %>%
+  mutate(Percent_Detected=((Detect_Count)/(Detect_Count+Non_Detect_Count))
+         *100) %>% 
+  distinct(MonitoringLocationName, parameter_group_nm, .keep_all=TRUE) 
+
+# Plots
+Detection_Percent<- Detect_Percent_Data %>% 
+  ggplot(aes(x=str_wrap(parameter_group_nm, 20), y = Percent_Detected, fill = parameter_group_nm)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  facet_wrap(~MonitoringLocationName) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) + 
+  labs(x="", title="Percent of Samples Above Detection Limit", fill="Analyte Group Name", 
+       caption = "Physical, sediment, and stable isotope measurements are not shown (no non-detects)")
+print(Detection_Percent)
+
+```
+
+# Other Things
+
+```{r}
+
+```
+
+# Save all Figures
+
+```{r}
+ggsave("output/Figures/3-site_Rating-Curve.png", plot=Rating_Curve)
+```
+

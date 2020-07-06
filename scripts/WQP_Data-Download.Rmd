@@ -130,9 +130,22 @@ Both_Water_Plot_Data_2014<-Both_Water_Plot_Data_2014 %>% #Convert to common g/L 
   mutate(Measured_Value_ugperL = Measured_Value_gperL * 1000000) %>% 
   mutate(Measured_Value_ugperL_not_min = case_when(str_detect(parameter_units, "mg/l") ~ ResultMeasureValue/1000,
                                                   parameter_units == "ug/l" ~ ResultMeasureValue/1000000,
-                                                  parameter_units == "ng/l" ~ ResultMeasureValue/1000000000))
+                                                  parameter_units == "ng/l" ~ ResultMeasureValue/1000000000)) %>% 
+  mutate(Detect_Status = ifelse(is.na(ResultMeasureValue), "Non-Detect", "Detect"))
 
 ```
+
+### STORET Site Data
+```{r}
+Ellerbe_Gorman_Data<-readWQPdata(siteid= c("21NC02WQ-J1330000", "21NC03WQ-J1330000")) %>% # EPA site near Gorman
+  filter(ActivityMediaName == "Water")
+
+Flat_Dam_Data<-readWQPdata(siteid= c("21NC02WQ-J1100000", "21NC03WQ-J1100000")) %>% # EPA site near Dam
+  filter(ActivityMediaName == "Water")
+
+STORET_Data_EC_FR<-full_join(Ellerbe_Gorman_Data, Flat_Dam_Data)
+```
+
 
 ### Save Data Locally
 ```{r}
@@ -141,12 +154,18 @@ write.csv(Upper_Neuse_Water, "output/Data/WQP_Upper-Neuse_WATER.csv")
 write.csv(Both_Water, "output/Data/WQP_FR-EC_WATER.csv")
 
 write.csv(Flat_River_Water, "output/Data/WQP_FR_WATER.csv")
+```
+
+
+```{r}
 write.csv(Ellerbe_Creek_Water, "output/Data/WQP_EC_WATER.csv")
 
 write.csv(Upper_Neuse_Sites, "output/Data/WQP_Upper-Neuse_SITES.csv")
 write.csv(Ellerbe_Flat_Sites, "output/Data/WQP_FR-EC_SITES.csv")
 
 write.csv(Both_Water_Plot_Data_2014, "output/Data/WQP_FR-EC_WATER-2014.csv")
+
+write.csv(STORET_Data_EC_FR, "output/Data/WQP_FR-EC_WATER_STORET.csv")
 #tally(group_by(Upper_Neuse_Raw_Data_Raw, ActivityMediaName)) # Just to validate
 #tally(group_by(Parameter_Data, parameter_group_nm)) # Count of parameters, per group
 ```
@@ -182,6 +201,69 @@ Inverts_Upper_Neuse<- Inverts_Upper_Neuse_raw %>%
 
 ```{r}
 write.csv(Inverts_Upper_Neuse, "output/Data/Upper-Neuse_Inverts.csv")
+```
+
+# Monthly Flow Data
+
+```{r}
+Flat<-read.table("data_raw/Flat_Dam.txt", header = TRUE, sep = "\t") %>% 
+  mutate(Gage_ft = ifelse(parameter_cd=="65", mean_va, NA)) %>% 
+  mutate(Discharge_cu3sec = ifelse(parameter_cd=="60", mean_va, NA)) %>% 
+  unite(year_month, c("year_nu","month_nu")) %>% 
+  select(-c(mean_va, ts_id))
+
+Flat_1<-filter(Flat, parameter_cd == "60") %>% select(-Gage_ft)
+Flat_2<-filter(Flat, parameter_cd == "65") %>% select(-Discharge_cu3sec)
+Flat<-full_join(Flat_1, Flat_2, by = c("agency_cd", "site_no", "year_month")) %>% 
+  select(-contains("parameter")) 
+
+Club<-read.table("data_raw/Ellerbe_Club.txt", header = TRUE, sep = "\t") %>% 
+  mutate(Gage_ft = ifelse(parameter_cd=="65", mean_va, NA)) %>% 
+  mutate(Discharge_cu3sec = ifelse(parameter_cd=="60", mean_va, NA)) %>% 
+  unite(year_month, c("year_nu","month_nu")) %>% 
+  select(-c(mean_va, ts_id))
+
+Club_1<-filter(Club, parameter_cd == "60") %>% select(-Gage_ft)
+Club_2<-filter(Club, parameter_cd == "65") %>% select(-Discharge_cu3sec)
+Club<-full_join(Club_1, Club_2, by = c("agency_cd", "site_no", "year_month")) %>% 
+  select(-contains("parameter"))
+
+Glennstone<-read.table("data_raw/Ellerbe_Glennstone.txt", header = TRUE, sep = "\t") %>% 
+  mutate(Gage_ft = ifelse(parameter_cd=="65", mean_va, NA)) %>% 
+  mutate(Discharge_cu3sec = ifelse(parameter_cd=="60", mean_va, NA)) %>% 
+  unite(year_month, c("year_nu","month_nu")) %>% 
+  select(-c(mean_va, ts_id))
+
+Glennstone_1<-filter(Glennstone, parameter_cd == "60") %>% select(-Gage_ft)
+Glennstone_2<-filter(Glennstone, parameter_cd == "65") %>% select(-Discharge_cu3sec)
+Glennstone<-full_join(Glennstone_1, Glennstone_2, by = c("agency_cd", "site_no", "year_month")) %>% 
+  select(-contains("parameter"))
+
+Haw<-read.table("data_raw/Haw_Near-Jordan-Lake.txt", header = TRUE, sep = "\t") %>% 
+  mutate(Gage_ft = ifelse(parameter_cd=="65", mean_va, NA)) %>% 
+  mutate(Discharge_cu3sec = ifelse(parameter_cd=="60", mean_va, NA)) %>% 
+  unite(year_month, c("year_nu","month_nu")) %>% 
+  select(-c(mean_va, ts_id))
+
+Haw_1<-filter(Haw, parameter_cd == "60") %>% select(-Gage_ft)
+Haw_2<-filter(Haw, parameter_cd == "65") %>% select(-Discharge_cu3sec)
+Haw<-full_join(Haw_1, Haw_2, by = c("agency_cd", "site_no", "year_month")) %>% 
+  select(-contains("parameter")) 
+
+All_sites_flow<-full_join(Flat, Club)
+All_sites_flow<-full_join(All_sites_flow, Glennstone) 
+All_sites_flow<-full_join(All_sites_flow, Haw) %>% 
+  mutate(site_no=recode(site_no,
+                        "2086500" = "Flat River Near Dam",
+                        "208675010" = "Ellerbe Creek by Club Blvd",
+                        "2086849" = "Ellerbe Creek by Glennstone",
+                        "2096960" = "Haw River upstream/near Jordan Lake"))
+```
+
+### Save Flow data
+
+```{r}
+write.csv(All_sites_flow, "output/Data/Upper-Neuse_Inverts.csv")
 ```
 
 
