@@ -92,36 +92,83 @@ Detect_Percent_Data<- Both_Water_Plot_Data_2014 %>%
                     "Information|Physical|Sediment|Stable")) %>%
   mutate(parameter_group_nm = str_replace_all(parameter_group_nm, 
                               "Inorganics, Major, Non-metals|Inorganics, Major, Metals|Inorganics, Minor, Metals",
-                              "Inorganics")) %>%  
+                              "Inorganics")) %>% 
+  group_by(USGSPCode, MonitoringLocationName) %>% 
+  mutate(Code_Detect_Count=sum(!is.na(ResultMeasureValue))) %>%
+  filter(Code_Detect_Count!= 0) %>% 
   group_by(parameter_group_nm, MonitoringLocationName) %>% 
   mutate(Detect_Count=sum(!is.na(ResultMeasureValue))) %>% 
   mutate(Non_Detect_Count=sum(is.na(ResultMeasureValue))) %>%
-  mutate(Percent_Detected=((Detect_Count)/(Detect_Count+Non_Detect_Count))
+  mutate(Percent_Detected=((Non_Detect_Count)/(Detect_Count+Non_Detect_Count))
          *100) %>% 
   distinct(MonitoringLocationName, parameter_group_nm, .keep_all=TRUE) 
 
 # Plots
 Detection_Percent<- Detect_Percent_Data %>% 
+  ungroup() %>% 
+  mutate(MonitoringLocationName = str_replace_all(MonitoringLocationName, 
+                              "ELLERBE CREEK NEAR GORMAN, NC", "ELLERBE CREEK AT GORMAN, NC")) %>%
   ggplot(aes(x=str_wrap(parameter_group_nm, 20), y = Percent_Detected, fill = parameter_group_nm)) +
   geom_bar(position = "dodge", stat = "identity") +
   facet_wrap(~MonitoringLocationName) +
   theme_classic() + 
-  theme(axis.text.x = element_text(angle=45, hjust = 1)) + 
-  labs(x="", title="Percent of Samples Above Detection Limit", fill="Analyte Group Name", 
-       caption = "Physical, sediment, and stable isotope measurements are not shown (no non-detects)")
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position="bottom",  
+        plot.caption = element_text(hjust = 0.5),
+        plot.title = element_text(hjust = 0.5)) + 
+  ylim(0, 100) +
+  coord_flip() +
+  labs(x="", y="Portion of samples below detection limit (%)", 
+       title="Portion of Samples Below Detection Limit, for Detected Analytes", fill="Analyte Group", 
+       caption = "'Organics, other' is inclusive of pharmaceuticals and industrial byproducts")
 print(Detection_Percent)
+
+Gorman_Detection_Percent<- Detect_Percent_Data %>% 
+  ungroup() %>% 
+  filter(str_detect(MonitoringLocationIdentifier, 
+                    c("02086849"))) %>% 
+  mutate(MonitoringLocationName = str_replace_all(MonitoringLocationName, 
+                                                  "ELLERBE CREEK NEAR GORMAN, NC", "ELLERBE CREEK AT GORMAN, NC")) %>%
+  ggplot(aes(x=str_wrap(parameter_group_nm, 20), y = Percent_Detected, fill = parameter_group_nm)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  #facet_wrap(~MonitoringLocationName) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position="none",  
+        plot.caption = element_text(hjust = 0.5),
+        plot.title = element_text(hjust = 0.5)) + 
+  ylim(0, 100) +
+  #coord_flip() +
+  labs(x="", y="Samples below detection limit (%)", 
+       title="Portion of Samples Below Detection Limit, for Detected Analytes", fill="Analyte Group", 
+       caption = "'Organics, other' is inclusive of pharmaceuticals and industrial byproducts")
+print(Gorman_Detection_Percent)
 
 ```
 
 # Other Things
 
 ```{r}
-
+Two_Sites<-Both_Water_Plot_Data_2014 %>%
+  filter(!is.na(Measured_Value_ugperL)) %>%
+  filter(str_detect(parameter_group_nm, 
+                    c("Organic"))) %>% 
+  filter(!str_detect(CharacteristicName, "carbon")) %>% 
+  filter(Measured_Value_ugperL>0.085) %>% 
+  group_by(CharacteristicName) %>% 
+  ggplot(aes(x=reorder(str_wrap(CharacteristicName, 40), Measured_Value_ugperL), 
+             y=Measured_Value_ugperL, fill=parameter_group_nm)) +
+  geom_bar(stat="identity", position="dodge") +
+  # scale_y_continuous(trans='log10') +
+  coord_flip() +
+  #geom_text(aes(label = ..count..), stat="count") +
+  theme_classic() + 
+  labs(title="Ellerbe Creek (Downstream), Top 20 Organic Analytes", y="Max Measured Value (ug/L)", x=NULL)
+print(Two_Sites)
 ```
 
 # Save all Figures
 
 ```{r}
 ggsave("output/Figures/3-site_Rating-Curve.png", plot=Rating_Curve)
+ggsave("output/Figures/Detection_Percent.png", plot=Detection_Percent)
 ```
 
