@@ -146,10 +146,10 @@ Inverts_Upper_Neuse<- Inverts_Upper_Neuse_raw %>%
 ########################## 
 #### Analysis of Data ####
 ##########################
-setwd("C:/Users/jrb146/OneDrive - Duke University/Documents/5. R")
+setwd("C:/Users/jbehr/OneDrive - Duke University/Documents/5. R")
 
 #### Water ####
-Two_Sites_2014_Small<- read.csv(file="2. WQP Ellerbe Flat/output/labeled-analytes.csv")
+Two_Sites_2014_Small<- read.csv(file="2._WQP-EllerbeC-FlatR/output/labeled-analytes.csv")
 
 Two_Sites<-Two_Sites_2014_Small %>%
   group_by(CharacteristicName) %>% 
@@ -159,9 +159,14 @@ Two_Sites<-Two_Sites_2014_Small %>%
   coord_flip() +
   #geom_text(aes(label = ..count..), stat="count") +
   theme_classic() + 
-  labs(title="Ellerbe Creek (Downstream), Top 20 Organic Analytes", y="Max Measured Value (ug/L)", x=NULL)
+  theme(axis.text.x = element_blank(), legend.position="bottom", legend.text.align = 0,  
+        axis.title.y = element_text(size=14), axis.text.y = element_text(size=14),
+        axis.title.x = element_text(size=14),
+        legend.text=element_text(size=14),
+        plot.caption = element_text(size=14, hjust = 0.5)) + 
+  labs(title="", fill="", y="Max Measured Value (ug/L)", x=NULL)
 print(Two_Sites)
-ggsave("2. WQP Ellerbe Flat/output/two-sites.png")
+ggsave("2._WQP-EllerbeC-FlatR/output/Figures/two-sites.png")
 
 #### Inverts ####
 

@@ -15,7 +15,7 @@ library(leaflet)
 library(reshape2)
 library(knitr)
 library(MazamaSpatialUtils)
-
+library(scales)
 #Set working directory
 opts_knit$set(root.dir = "C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2._WQP-EllerbeC-FlatR")
 ```
@@ -132,13 +132,15 @@ Gorman_Detection_Percent<- Detect_Percent_Data %>%
   geom_bar(position = "dodge", stat = "identity") +
   #facet_wrap(~MonitoringLocationName) +
   theme_classic() + 
-  theme(axis.text.x = element_text(angle=45, hjust = 1), legend.position="none",  
-        plot.caption = element_text(hjust = 0.5),
-        plot.title = element_text(hjust = 0.5)) + 
+  theme(axis.text.x = element_blank(), legend.position="bottom",  
+        axis.title.y = element_text(size=16), axis.text.y = element_text(size=18),
+        legend.text=element_text(size=16),
+        plot.caption = element_text(size=16, hjust = 0.5),
+        plot.title = element_text(size=16, hjust = 0.5)) + 
   ylim(0, 100) +
   #coord_flip() +
   labs(x="", y="Samples below detection limit (%)", 
-       title="Portion of Samples Below Detection Limit, for Detected Analytes", fill="Analyte Group", 
+       title="", fill="", 
        caption = "'Organics, other' is inclusive of pharmaceuticals and industrial byproducts")
 print(Gorman_Detection_Percent)
 
@@ -152,6 +154,7 @@ Two_Sites<-Both_Water_Plot_Data_2014 %>%
   filter(str_detect(parameter_group_nm, 
                     c("Organic"))) %>% 
   filter(!str_detect(CharacteristicName, "carbon")) %>% 
+  filter(str_detect(MonitoringLocationName, "ELLERBE")) %>% 
   filter(Measured_Value_ugperL>0.085) %>% 
   group_by(CharacteristicName) %>% 
   ggplot(aes(x=reorder(str_wrap(CharacteristicName, 40), Measured_Value_ugperL), 
@@ -161,9 +164,54 @@ Two_Sites<-Both_Water_Plot_Data_2014 %>%
   coord_flip() +
   #geom_text(aes(label = ..count..), stat="count") +
   theme_classic() + 
-  labs(title="Ellerbe Creek (Downstream), Top 20 Organic Analytes", y="Max Measured Value (ug/L)", x=NULL)
+  labs(title="Ellerbe Creek (Downstream), Top Organic Analytes", y="Max Measured Value (ug/L)", x=NULL)
 print(Two_Sites)
 ```
+
+```{r}
+Two_Sites_Full_pest<-Both_Water_Plot_Data_2014 %>%
+  filter(!is.na(Measured_Value_ugperL)) %>%
+  filter(str_detect(parameter_group_nm, 
+                    c("Organics, pesticide"))) %>% 
+  filter(!str_detect(CharacteristicName, "carbon")) %>% 
+  filter(str_detect(MonitoringLocationName, "ELLERBE|DAM")) %>% 
+  #filter(Measured_Value_ugperL>0.085) %>% 
+  group_by(CharacteristicName) %>% 
+  ggplot(aes(x=reorder(str_wrap(CharacteristicName, 20), Measured_Value_ugperL), 
+             y=Measured_Value_ugperL_not_min, fill=MonitoringLocationName)) +
+  geom_boxplot() +
+  scale_y_continuous(trans='log10') +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) +
+  labs(title="Detected Pesticides", y="Measured Value (g/L)", x=NULL)
+print(Two_Sites_Full_pest)
+#ggsave("output/Figures/pesticides.png")
+
+Two_Sites_Full_pharm<-Both_Water_Plot_Data_2014 %>%
+  filter(!is.na(Measured_Value_ugperL)) %>%
+  filter(str_detect(parameter_group_nm, c("Organics, other"))) %>% 
+  filter(!str_detect(CharacteristicName, "carbon|mercury")) %>% 
+  filter(str_detect(MonitoringLocationName, "ELLERBE|DAM")) %>% 
+  mutate(CharacteristicName = str_replace_all(CharacteristicName, "\\(", "-")) %>% 
+  mutate(CharacteristicName = str_replace_all(CharacteristicName, "\\)", "-")) %>% 
+  mutate(CharacteristicName = str_replace(CharacteristicName, 
+          "Morphinan-6-one, 4,5-epoxy-14-hydroxy-3-methoxy-17-methyl-, -5.alpha.--", "Oxycodone")) %>% 
+  mutate(CharacteristicName = str_replace_all(CharacteristicName, 
+          "Acetamide, 2--diethylamino--N--2,6-dimethylphenyl--", "Anestacon")) %>%
+  #  mutate(food = replace(food, str_detect(food, "fruit"), "fruit")) %>% 
+  filter(Measured_Value_ugperL>0) %>% 
+  group_by(CharacteristicName) %>% 
+  ggplot(aes(x=reorder(str_wrap(CharacteristicName, 25), Measured_Value_ugperL), 
+                           y=Measured_Value_ugperL_not_min, fill=MonitoringLocationName)) +
+  geom_boxplot() +
+  scale_y_continuous(trans='log10') +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) +
+  labs(title="Detected Pharmacueticals and Other Organic Analytes", y="Measured Value (g/L)", x=NULL)
+print(Two_Sites_Full_pharm)
+
+```
+
 
 # Save all Figures
 
