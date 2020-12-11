@@ -1,0 +1,91 @@
+---
+title: "WQP_Durham-Site-Analysis"
+author: "J.Behrens"
+date: "12/11/2020"
+output: html_document
+---
+# Set-Up R Environment
+```{r setup}
+## Clear environment
+rm(list = ls())
+
+## Libraries
+library(dataRetrieval)
+library(tidyverse)
+library(openxlsx)
+library(leaflet)                                           
+library(reshape2)
+library(knitr)
+library(MazamaSpatialUtils)
+
+#Set working directory
+opts_knit$set(root.dir = "C:/Users/jbehr/OneDrive - Duke University/Documents/5. R/2._WQP-EllerbeC-FlatR")
+```
+
+# Water Data
+
+### Download Data
+Note that the data was previously downloaded from the WQP, however here a file previously saved is used (code to download directly from the WQP is commented out).
+
+*This will take a few minutes*
+```{r}
+#Ellerbe_Raw_Data <- readWQPdata(huc = "030202010403") # Takes awhile to load (downloaded on 12/11/2020)
+#write.csv(Ellerbe_Raw_Data, "output/Data/WQP_Ellerbe_RAW.csv")
+
+Ellerbe_Raw_Data<-read.csv("output/Data/WQP_Ellerbe_RAW.csv") 
+
+Ellerbe_Sites<-whatWQPsites(huc = "030202010403")
+
+#Upper_Neuse_Water_Raw<-Upper_Neuse_Raw_Data %>% 
+ # filter(ActivityMediaName == "Water")
+```
+
+### Map Out Sites
+```{r}
+library(leaflet)
+Ellerbe_Sites_StreamLake<-Ellerbe_Sites %>% 
+   filter(str_detect(MonitoringLocationTypeName, 
+                    "tream|ake")) #Find only stream and lake sites
+
+Ellerbe_Sites_UPStreamLake<-Ellerbe_Sites_StreamLake %>% 
+   filter(LongitudeMeasure < -78.86300)
+
+Ellerbe_Sites_DOWNStreamLake<-Ellerbe_Sites_StreamLake  %>% 
+   filter(LongitudeMeasure > -78.86300)
+
+# All Sites
+leaflet(data=Ellerbe_Sites_StreamLake) %>% 
+  addProviderTiles("Esri.NatGeoWorldMap") %>%
+  addCircleMarkers(~LongitudeMeasure,~LatitudeMeasure,
+                   color = "red", radius=3, stroke=FALSE,
+                   fillOpacity = 0.8, opacity = 0.8,
+                   popup=~MonitoringLocationName)
+
+# Upstream Sites
+leaflet(data=Ellerbe_Sites_UPStreamLake) %>% 
+  addProviderTiles("Esri.NatGeoWorldMap") %>%
+  addCircleMarkers(~LongitudeMeasure,~LatitudeMeasure,
+                   color = "red", radius=3, stroke=FALSE,
+                   fillOpacity = 0.8, opacity = 0.8,
+                   popup=~MonitoringLocationName)
+
+# Downstream Sites
+leaflet(data=Ellerbe_Sites_DOWNStreamLake) %>% 
+  addProviderTiles("Esri.NatGeoWorldMap") %>%
+  addCircleMarkers(~LongitudeMeasure,~LatitudeMeasure,
+                   color = "red", radius=3, stroke=FALSE,
+                   fillOpacity = 0.8, opacity = 0.8,
+                   popup=~MonitoringLocationName)
+```
+
+
+```{r}
+
+
+```
+
+
+
+
+
+
