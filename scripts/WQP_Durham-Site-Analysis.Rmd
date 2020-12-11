@@ -174,9 +174,7 @@ print(Lead_Down)
 
 ```{r}
 
-library(arsenal) 
-table_one <- tableby(continent ~ ., data = gapminder) 
-summary(table_one, title = "Gapminder Data")
+
 ```
 
 
