@@ -78,14 +78,106 @@ leaflet(data=Ellerbe_Sites_DOWNStreamLake) %>%
                    popup=~MonitoringLocationName)
 ```
 
+#Comparing Sandy Creek to Ellerbe Creek
 
 ```{r}
+#Sandy_Cornwallis_Raw<- readWQPdata(siteid = "USGS-0209722970")
+#]Ellerbe_Gorman_Raw<- readWQPdata(siteid = "USGS-02086849")
+#Flat_Bahama_Raw<- readWQPdata(siteid = "USGS-02085500")
 
+rm(Sandy_Cornwallis, Ellerbe_Gorman, Flat_Bahama)
+
+Sandy_Cornwallis<-Sandy_Cornwallis_Raw %>% 
+  filter(str_detect(ActivityStartDate, "2014")) %>% 
+  filter(ActivityMediaName == "Water") %>% 
+  group_by(CharacteristicName) %>% 
+  mutate(Max_Param_Value = max(ResultMeasureValue)) %>% 
+  ungroup()
+Sandy_Cornwallis<-Sandy_Cornwallis %>% mutate_if(sapply(Sandy_Cornwallis, is.numeric), as.factor)
+  
+Ellerbe_Gorman<-Ellerbe_Gorman_Raw %>% 
+  filter(str_detect(ActivityStartDate, "2014"))%>% 
+  filter(ActivityMediaName == "Water") %>% 
+  group_by(CharacteristicName) %>% 
+  mutate(Max_Param_Value = max(ResultMeasureValue)) %>% 
+  ungroup()
+Ellerbe_Gorman<-Ellerbe_Gorman %>% mutate_if(sapply(Ellerbe_Gorman, is.numeric), as.factor)
+
+Flat_Bahama<-Flat_Bahama_Raw %>% 
+  filter(str_detect(ActivityStartDate, "2014"))%>% 
+  filter(ActivityMediaName == "Water") %>% 
+  group_by(CharacteristicName) %>% 
+  mutate(Max_Param_Value = max(ResultMeasureValue)) %>% 
+  ungroup()
+Flat_Bahama<-Flat_Bahama %>% mutate_if(sapply(Flat_Bahama, is.numeric), as.factor)
+
+rm(parameterCdFile)
+parameterCdFile<-parameterCdFile %>% 
+  rename(USGSPCode = parameter_cd)
+
+All_Sites<-full_join(Sandy_Cornwallis, Ellerbe_Gorman) %>% 
+  full_join(Flat_Bahama) %>% 
+  left_join(parameterCdFile)
+
+#view(Sandy_Cornwallis %>% filter(CharacteristicName == "Sodium"))
 
 ```
 
 
 
+```{r}
+Measurements_Grouped<-All_Sites %>% 
+  distinct(MonitoringLocationIdentifier, USGSPCode, .keep_all = TRUE) %>% 
+  filter(!is.na(ResultMeasureValue)) %>%
+  filter(!str_detect(parameter_group_nm, "Information|Stable|Sediment|Physical")) %>% 
+  ggplot(aes(x=MonitoringLocationIdentifier, fill = as.character(parameter_group_nm))) +
+  geom_bar() +
+ # ylim(0, 700) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) + 
+  labs(title="Total Measurements Taken in 2014", fill="Analyte Group Name")
+print(Measurements_Grouped)
+##ggsave("output/Decades_EC.png")
+
+
+
+
+```
+
+```{r}
+Lead_Up<-Ellerbe_Sites_UPStreamLake %>% 
+  left_join(Ellerbe_Raw_Data) %>% 
+  filter(!is.na(ResultMeasureValue)) %>%
+  filter(ResultMeasureValue>0) %>% 
+  filter(str_detect(CharacteristicName, "ead")) %>% 
+  ggplot(aes(x=ActivityStartDate, y=ResultMeasureValue, colour=MonitoringLocationName)) +
+  geom_point() +
+  scale_x_date(date_labels = "%Y") +
+  theme_classic()
+print(Lead_Up)
+
+Lead_Down<-Ellerbe_Sites_DOWNStreamLake %>% 
+  left_join(Ellerbe_Raw_Data) %>% 
+  filter(!is.na(ResultMeasureValue)) %>%
+  filter(ResultMeasureValue>0) %>% 
+  filter(str_detect(CharacteristicName, "ead")) %>% 
+  ggplot(aes(x=ActivityStartDate, y=ResultMeasureValue, colour=MonitoringLocationName)) +
+  geom_point() +
+  scale_x_date(date_labels = "%Y") +
+  theme_classic()
+print(Lead_Down)
+
+
+
+```
+
+
+```{r}
+
+library(arsenal) 
+table_one <- tableby(continent ~ ., data = gapminder) 
+summary(table_one, title = "Gapminder Data")
+```
 
 
 
